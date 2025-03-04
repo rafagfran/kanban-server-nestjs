@@ -24,9 +24,9 @@ export class CardController {
     return this.cardService.createCard(createCardDto);
   }
 
-  @Get(':id')
-  async listCardsByColumn(@Param('id') id: string): Promise<TCard[]> {
-    return this.cardService.getCardsByColumn(+id);
+  @Get('byColumn/:id')
+  async listCardsByColumn(@Param('id') columnId: string): Promise<TCard[]> {
+    return this.cardService.getCardsByColumn(+columnId);
   }
 
   @Get()

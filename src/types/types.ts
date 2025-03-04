@@ -1,4 +1,4 @@
-import type { Cards, Columns, Prisma } from '@prisma/client';
+import type { Cards, Prisma } from '@prisma/client';
 
 export type TCardCreate = Pick<
   Prisma.CardsCreateManyInput,
@@ -7,4 +7,6 @@ export type TCardCreate = Pick<
 export type TCard = Cards;
 
 export type TListCreate = Prisma.ColumnsCreateInput;
-export type TList = Columns;
+export type TColumnsWithCards = Prisma.ColumnsGetPayload<{
+  include: { cards: true };
+}>;

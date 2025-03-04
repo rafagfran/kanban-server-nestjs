@@ -5,7 +5,7 @@ import { CreateCardDto } from './create-card.dto';
 
 @Injectable()
 export class CardService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) {}git 
 
   async createCard(cardInfos: CreateCardDto) {
     const { columnId, title } = cardInfos;

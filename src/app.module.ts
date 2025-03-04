@@ -3,10 +3,11 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { CardModule } from './card/card.module';
 import { DatabaseModule } from './database/database.module';
-import { ListModule } from './list/list.module';
+
+import { ColumnModule } from './column/column.module';
 
 @Module({
-  imports: [CardModule, DatabaseModule, ListModule],
+  imports: [CardModule, DatabaseModule, ColumnModule],
   controllers: [AppController],
   providers: [AppService]
 })

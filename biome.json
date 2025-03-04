@@ -38,7 +38,7 @@
 		"rules": {
 			"recommended": true,
 			"style": {
-				"useImportType": "warn",
+				"useImportType": "off",
 				"useNamingConvention": {
 					"level": "error",
 					"options": {

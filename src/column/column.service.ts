@@ -1,14 +1,14 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/database/prisma.service';
-import { CreateListDto } from './create-list.dto';
-import { UpdateListDto } from './update-list.dto';
+import { TColumnsWithCards } from 'src/types/types';
+import type { CreateColumnDto } from './create-column.dto';
 
 @Injectable()
-export class ListService {
+export class ColumnService {
   constructor(private prisma: PrismaService) {}
 
-  async createList(newListData: CreateListDto) {
-    const { title } = newListData;
+  async createColumn(newColumnData: CreateColumnDto) {
+    const { title } = newColumnData;
 
     const lastColumn = await this.prisma.columns.aggregate({
       _max: { position: true }
@@ -23,13 +23,17 @@ export class ListService {
     });
   }
 
-  async getAllLists() {
+  async listAllColumns() {
     return await this.prisma.columns.findMany();
   }
 
-  async updateListTitle(id: number, updatedData: UpdateListDto) {
-    const { title } = updatedData;
+  async listColumnsWithCards(): Promise<TColumnsWithCards[]> {
+    return await this.prisma.columns.findMany({
+      include: { cards: { orderBy: { position: 'asc' } } }
+    });
+  }
 
+  async updateColumnTitle(id: number, title: string) {
     const existentColumn = await this.prisma.columns.findUnique({
       where: { id }
     });
@@ -44,7 +48,7 @@ export class ListService {
     });
   }
 
-  async deleteList(id: number) {
+  async deleteColumn(id: number) {
     const existentColumn = await this.prisma.columns.findUnique({
       where: { id }
     });
