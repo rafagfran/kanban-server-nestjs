@@ -3,8 +3,6 @@ import {
   Controller,
   Delete,
   Get,
-  HttpException,
-  HttpStatus,
   Param,
   ParseIntPipe,
   Post,
@@ -24,7 +22,19 @@ export class CardController {
     return this.cardService.createCard(createCardDto);
   }
 
-  @Get('byColumn/:id')
+  @Post('bulk')
+  async createCardsInBulk(@Body() createCardDto: CreateCardDto[]) {
+    return this.cardService.createCardsInBulk(createCardDto);
+  }
+
+  @Post('bulk-per-column')
+  async createCardsInBulkPerColumn(@Body() columnId: number, cards: {title: string}[]) {
+    return this.cardService.createCardInBulkPerColumn({cards, columnId});
+  }
+
+
+  
+  @Get('by-column/:id')
   async listCardsByColumn(@Param('id') columnId: string): Promise<TCard[]> {
     return this.cardService.getCardsByColumn(+columnId);
   }
@@ -39,7 +49,6 @@ export class CardController {
     @Param('id', ParseIntPipe) id: number,
     @Body() updateCardDto: UpdateCardDto
   ) {
-
     return this.cardService.updateCardTitle(id, updateCardDto);
   }
 

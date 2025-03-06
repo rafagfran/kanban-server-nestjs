@@ -5,7 +5,7 @@ import { CreateCardDto } from './create-card.dto';
 
 @Injectable()
 export class CardService {
-  constructor(private prisma: PrismaService) {}git 
+  constructor(private prisma: PrismaService) {}
 
   async createCard(cardInfos: CreateCardDto) {
     const { columnId, title } = cardInfos;
@@ -33,6 +33,57 @@ export class CardService {
 
     return this.prisma.cards.create({
       data: { columnId, title, position: lastCard._max.position + 1 }
+    });
+  }
+
+  async createCardsInBulk(cards: CreateCardDto[]) {
+    if (!cards.length) {
+      throw new HttpException('No cards to create', HttpStatus.BAD_REQUEST);
+    }
+
+    const lastCard = await this.prisma.cards.aggregate({
+      _max: { position: true }
+    });
+
+    const cardsWithPosition = cards.map((card, index) => ({
+      ...card,
+      position: (lastCard._max.position ?? 0) + index + 1
+    }));
+
+    return this.prisma.cards.createMany({
+      data: cardsWithPosition
+    });
+  }
+
+  async createCardInBulkPerColumn({columnId, cards}: {columnId:number,cards: {title: string}[] }) {
+    if (!cards.length) {
+      throw new HttpException('No cards to create', HttpStatus.BAD_REQUEST);
+    }
+
+
+    const existingColumn = await this.prisma.columns.findUnique({
+      where: {id: columnId}
+    });
+
+    if (!existingColumn) {
+      throw new HttpException(
+        'This column id does not exist',
+        HttpStatus.NOT_FOUND
+      );
+    }
+
+    const lastCard = await this.prisma.cards.aggregate({
+      _max: { position: true }
+    });
+
+    const cardsWithPosition = cards.map((card, index) => ({
+      columnId,
+      title: card.title,
+      position: (lastCard._max.position ?? 0) + index + 1
+    }));
+
+    return this.prisma.cards.createMany({
+      data: cardsWithPosition
     });
   }
 
