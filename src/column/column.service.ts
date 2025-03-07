@@ -15,10 +15,10 @@ export class ColumnService {
     });
 
     if (!lastColumn._max.position) {
-      return this.prisma.columns.create({ data: { title, position: 1 } });
+      return await this.prisma.columns.create({ data: { title, position: 1 } });
     }
 
-    return this.prisma.columns.create({
+    return await this.prisma.columns.create({
       data: { title, position: lastColumn._max.position + 1 }
     });
   }

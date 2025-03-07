@@ -1,13 +1,20 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  HttpException,
+  HttpStatus,
+  Post
+} from '@nestjs/common';
 import OpenAI from 'openai';
 import { CardService } from 'src/card/card.service';
 import { ColumnService } from 'src/column/column.service';
+import { TCardCreate } from 'src/types/types';
 
 @Controller('chatbot')
 export class ChatbotController {
   constructor(
-    private cardService: CardService,
-    private columnService: ColumnService
+    private readonly cardService: CardService,
+    private  readonly columnService: ColumnService
   ) {}
 
   @Post()
@@ -17,52 +24,121 @@ export class ChatbotController {
 
     const client = new OpenAI({ baseURL: endpoint, apiKey: token });
 
-    const { choices } = await client.chat.completions.create({
-      messages: [
-        {
-          role: 'system',
-          content: `
-            Você é um assistente que deve responder **exclusivamente** em JSON, seguindo o formato: {"columnTitle": "columnTitle", "cards":["title": "title"]}. 
-            Se sua resposta não estiver nesse formato, a ação não poderá ser executada. 
-            Caso o usuário solicite algo fora do seu escopo de ações, retorne o erro e um motivo do erro. 
-            Não inclua explicações adicionais, apenas retorne o JSON solicitado.`
-        },
-        { role: 'user', content: body.message }
-      ],
+    const messages: OpenAI.ChatCompletionMessageParam[] = [
+      {
+        role: 'user',
+        content: body.message
+      }
+    ];
+
+    const tools: OpenAI.ChatCompletionTool[] = [
+      {
+        type: 'function',
+        function: {
+          name: 'create_card',
+          description: 'Cria um novo card em uma coluna específica',
+          parameters: {
+            type: 'object',
+            properties: {
+              title: {
+                type: 'string',
+                description: 'Título do card'
+              },
+              columnId: {
+                type: 'number',
+                description: 'ID da coluna onde o card será criado'
+              }
+            },
+            required: ['title', 'columnId'],
+            additionalProperties: false
+          },
+          strict: true
+        }
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'create_column',
+          description: 'Cria uma nova coluna com um título específico',
+          parameters: {
+            type: 'object',
+            properties: {
+              title: {
+                type: 'string',
+                description: 'Título da coluna'
+              }
+            },
+            required: ['title'],
+            additionalProperties: false
+          },
+          strict: true
+        }
+      }
+    ];
+
+    const completition = await client.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: messages,
+      tools: tools,
+      tool_choice: 'auto',
+      // store: true,
       temperature: 1.0,
-      // biome-ignore lint/style/useNamingConvention: <explanation>
       top_p: 1.0,
-      // biome-ignore lint/style/useNamingConvention: <explanation>
-      max_tokens: 1000,
-      model: 'gpt-4o'
+      max_tokens: 1000
     });
 
-    const chatbotResponse = choices[0].message.content;
+    // Armazena a resposta do modelo
+    const responseMessage = completition.choices[0].message;
 
-    if (!chatbotResponse) {
-      return 'Erro ao processar a requisição';
-    }
-
-    const chatbotResponseParsed = JSON.parse(chatbotResponse);
-
-    if (chatbotResponseParsed.error) {
-      return chatbotResponseParsed;
-    }
-
-    if (!chatbotResponseParsed.columnTitle || !chatbotResponseParsed.cards) {
-      return {
-        error: 'Formato inválido',
-        message: 'O JSON deve conter os campos "title" e "columnId"'
+    // Verifica se a resposta contém chamadas de ferramentas
+    if (responseMessage.tool_calls) {
+      // Armazena as chamadas de ferramentas
+      const toolCalls = responseMessage.tool_calls;
+      // Funções disponíveis para serem chamadas
+      const avalibleFunctions = {
+        create_card: this.cardService.createCard.bind(this.cardService),
+        create_column:() => this.columnService.createColumn
       };
+
+      messages.push(responseMessage);
+      const functionReponses = await Promise.all(
+        toolCalls.map(async (toolCalls) => {
+          // Nome da função a ser chamada
+          const functionName = toolCalls.function.name as keyof typeof avalibleFunctions;
+
+          if(!functionName){
+            throw new HttpException(
+              `Função "${functionName}" não encontrada`,
+              HttpStatus.NOT_FOUND
+            );
+          }
+
+          // Parâmetros da função
+          const functionParams = JSON.parse(toolCalls.function.arguments);
+          // Procura a função a ser chamada
+          const functionToCall = avalibleFunctions[functionName];
+
+          if (!functionToCall) {
+            throw new HttpException(
+              `Função "${functionName}" não encontrada`,
+              HttpStatus.NOT_FOUND
+            );
+          }
+
+          
+          // Chama a função
+          const functionResponse = await functionToCall(functionParams);
+
+          return {
+            tool_call_id: toolCalls.id,
+            role: 'tool',
+            name: functionName,
+            content: functionResponse
+          } as OpenAI.ChatCompletionMessageParam;
+        })
+      );
+      messages.push(...functionReponses);
+      return messages;
     }
-
-    const newColumn = await this.columnService.createColumn({
-      title: chatbotResponseParsed.columnTitle
-    });
-
-    return await this.cardService.createCardInBulkPerColumn({
-      cards: chatbotResponseParsed.cards,
-      columnId: newColumn.id
-    });
   }
 }

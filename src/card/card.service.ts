@@ -12,8 +12,8 @@ export class CardService {
 
     const existingColumn = await this.prisma.columns.findUnique({
       where: { id: columnId }
-    });
-
+    }); 
+    
     if (!existingColumn) {
       throw new HttpException(
         'This column id does not exist',

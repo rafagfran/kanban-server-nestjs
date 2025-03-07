@@ -39,13 +39,7 @@
 			"recommended": true,
 			"style": {
 				"useImportType": "off",
-				"useNamingConvention": {
-					"level": "error",
-					"options": {
-						"requireAscii": true,
-						"strictCase": false
-					}
-				},
+				
 				"useFilenamingConvention": "error"
 			},
 			"correctness": {
