@@ -1,6 +1,6 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/database/prisma.service';
-import { ColumnWithCardsResponse } from 'src/types/types';
+import { ColumnResponse, ColumnWithCardsResponse } from 'src/types/types';
 import type { CreateColumnDto } from './create-column.dto';
 
 @Injectable()
@@ -20,6 +20,32 @@ export class ColumnService {
 
     return await this.prisma.columns.create({
       data: { title, position: lastColumn._max.position + 1 }
+    });
+  }
+
+  async createManyColumns(
+    newColumnsData: CreateColumnDto[]
+  ): Promise<ColumnResponse[]> {
+    
+    return await this.prisma.$transaction(async (fx) => {
+      const lastColumn = await fx.columns.aggregate({
+        _max: { position: true }
+      });
+
+      const colsWithPosition = newColumnsData.map((columns, index) => {
+        return {
+          ...columns,
+          position: (lastColumn._max.position ?? 0) + index + 1
+        };
+      });
+
+      const createdCols = await Promise.all(
+        colsWithPosition.map(async (column) => {
+          return await fx.columns.create({ data: column });
+        })
+      );
+
+      return createdCols;
     });
   }
 

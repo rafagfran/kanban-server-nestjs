@@ -12,8 +12,8 @@ export class CardService {
 
     const existingColumn = await this.prisma.columns.findUnique({
       where: { id: columnId }
-    }); 
-    
+    });
+
     if (!existingColumn) {
       throw new HttpException(
         'This column id does not exist',
@@ -36,33 +36,37 @@ export class CardService {
     });
   }
 
-  async createCardsInBulk(cards: CreateCardDto[]) {
+  async createManyCards(cards: CreateCardDto[]) {
     if (!cards.length) {
       throw new HttpException('No cards to create', HttpStatus.BAD_REQUEST);
     }
 
-    const lastCard = await this.prisma.cards.aggregate({
-      _max: { position: true }
-    });
+    return await this.prisma.$transaction(async (fx) => {
+      const lastCard = await fx.cards.aggregate({
+        _max: { position: true }
+      });
 
-    const cardsWithPosition = cards.map((card, index) => ({
-      ...card,
-      position: (lastCard._max.position ?? 0) + index + 1
-    }));
+      const cardsWithPosition = cards.map((card, index) => ({
+        ...card,
+        position: (lastCard._max.position ?? 0) + index + 1
+      }));
 
-    return this.prisma.cards.createMany({
-      data: cardsWithPosition
+      return fx.cards.createMany({
+        data: cardsWithPosition
+      });
     });
   }
 
-  async createCardInBulkPerColumn({columnId, cards}: {columnId:number,cards: {title: string}[] }) {
+  async createCardInBulkPerColumn({
+    columnId,
+    cards
+  }: { columnId: number; cards: { title: string }[] }) {
     if (!cards.length) {
       throw new HttpException('No cards to create', HttpStatus.BAD_REQUEST);
     }
 
-
     const existingColumn = await this.prisma.columns.findUnique({
-      where: {id: columnId}
+      where: { id: columnId }
     });
 
     if (!existingColumn) {

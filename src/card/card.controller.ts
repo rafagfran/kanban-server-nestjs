@@ -24,16 +24,21 @@ export class CardController {
 
   @Post('bulk')
   async createCardsInBulk(@Body() createCardDto: CreateCardDto[]) {
-    return this.cardService.createCardsInBulk(createCardDto);
+    return this.cardService.createManyCards(createCardDto);
   }
 
   @Post('bulk-per-column')
-  async createCardsInBulkPerColumn(@Body() columnId: number, cards: {title: string}[]) {
-    return this.cardService.createCardInBulkPerColumn({cards, columnId});
+  async createCardsInBulkPerColumn(
+    @Body() columnId: number,
+    cards: { title: string }[]
+  ) {
+    return this.cardService.createCardInBulkPerColumn({ cards, columnId });
   }
-  
+
   @Get('by-column/:id')
-  async listCardsByColumn(@Param('id') columnId: string): Promise<CardResponse[]> {
+  async listCardsByColumn(
+    @Param('id') columnId: string
+  ): Promise<CardResponse[]> {
     return this.cardService.getCardsByColumn(+columnId);
   }
 
