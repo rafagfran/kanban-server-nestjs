@@ -1,12 +1,13 @@
-import type { Cards, Prisma } from '@prisma/client';
+import { Cards, Columns, Prisma } from '@prisma/client';
 
-export type TCardCreate = Pick<
-  Prisma.CardsCreateManyInput,
-  'columnId' | 'title' | 'position'
->;
-export type TCard = Cards;
+// Cards
+export type CardResponse = Cards;
+export type CardCreateInput = Prisma.CardsCreateManyInput;
 
-export type TListCreate = Prisma.ColumnsCreateInput;
-export type TColumnsWithCards = Prisma.ColumnsGetPayload<{
+// Columns
+export type ColumnResponse = Columns;
+export type ColumnWithCardsResponse = Prisma.ColumnsGetPayload<{
   include: { cards: true };
 }>;
+export type ColumnCreateInput = Prisma.ColumnsCreateManyInput;
+;

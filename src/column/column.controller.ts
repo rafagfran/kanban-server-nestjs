@@ -7,7 +7,7 @@ import {
   ParseIntPipe,
   Post
 } from '@nestjs/common';
-import { TColumnsWithCards, TListCreate } from 'src/types/types';
+import { ColumnResponse, ColumnWithCardsResponse } from 'src/types/types';
 import { ColumnService } from './column.service';
 import { CreateColumnDto } from './create-column.dto';
 
@@ -23,12 +23,12 @@ export class ColumnController {
   }
 
   @Get()
-  async allColumns(): Promise<TListCreate[]> {
+  async allColumns(): Promise<ColumnResponse[]> {
     return await this.columnService.listAllColumns();
   }
 
-  @Get("with-cards")
-  async withCards(): Promise<TColumnsWithCards[]> {
+  @Get('with-cards')
+  async withCards(): Promise<ColumnWithCardsResponse[]> {
     return this.columnService.listColumnsWithCards();
   }
 

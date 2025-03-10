@@ -26,7 +26,7 @@ model Cards {
   id        Int      @id @default(autoincrement())
   columnId  Int
   title     String
-  position   Int
+  position   Int?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   column    Columns  @relation(fields: [columnId], references: [id])
@@ -35,7 +35,7 @@ model Cards {
 model Columns {
   id        Int      @id @default(autoincrement())
   title     String
-  position   Int
+  position   Int?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   cards      Cards[]

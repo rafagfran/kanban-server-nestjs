@@ -1,10 +1,11 @@
 import { IsNotEmpty, IsNumber } from 'class-validator';
+import { CardCreateInput } from 'src/types/types';
 
-export class CreateCardDto {
+export class CreateCardDto implements CardCreateInput {
   @IsNotEmpty()
-  readonly title: string;
+  title: string;
 
   @IsNotEmpty()
   @IsNumber()
-  readonly columnId: number;
+  columnId: number;
 }

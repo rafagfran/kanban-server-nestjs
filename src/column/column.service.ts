@@ -1,6 +1,6 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/database/prisma.service';
-import { TColumnsWithCards } from 'src/types/types';
+import { ColumnWithCardsResponse } from 'src/types/types';
 import type { CreateColumnDto } from './create-column.dto';
 
 @Injectable()
@@ -27,7 +27,7 @@ export class ColumnService {
     return await this.prisma.columns.findMany();
   }
 
-  async listColumnsWithCards(): Promise<TColumnsWithCards[]> {
+  async listColumnsWithCards(): Promise<ColumnWithCardsResponse[]> {
     return await this.prisma.columns.findMany({
       include: { cards: { orderBy: { position: 'asc' } } }
     });

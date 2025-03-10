@@ -8,7 +8,7 @@ import {
   Post,
   Put
 } from '@nestjs/common';
-import type { TCard } from 'src/types/types';
+import type { CardResponse } from 'src/types/types';
 import { CardService } from './card.service';
 import { CreateCardDto } from './create-card.dto';
 import { UpdateCardDto } from './update-card.dto';
@@ -31,16 +31,14 @@ export class CardController {
   async createCardsInBulkPerColumn(@Body() columnId: number, cards: {title: string}[]) {
     return this.cardService.createCardInBulkPerColumn({cards, columnId});
   }
-
-
   
   @Get('by-column/:id')
-  async listCardsByColumn(@Param('id') columnId: string): Promise<TCard[]> {
+  async listCardsByColumn(@Param('id') columnId: string): Promise<CardResponse[]> {
     return this.cardService.getCardsByColumn(+columnId);
   }
 
   @Get()
-  async listAllCards(): Promise<TCard[]> {
+  async listAllCards(): Promise<CardResponse[]> {
     return this.cardService.getAllCards();
   }
 
