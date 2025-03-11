@@ -2,5 +2,5 @@ POST http://localhost:3000/chatbot
 Content-Type: application/json
 
 {
-  "message": "chat, me de informações de como voce foi construido neste kanban"
+  "message": ""
 }

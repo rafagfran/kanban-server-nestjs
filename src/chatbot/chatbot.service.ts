@@ -23,18 +23,18 @@ export class ChatbotService {
 
   private readonly getTools: ToolSet = {
     createCol: tool({
-      description: 'Cria uma coluna',
+      description: 'Create a new column',
       parameters: z.object({
-        title: z.string().describe('Título da coluna')
+        title: z.string().describe('Column title')
       }),
       execute: async ({ title }) => this.columnService.createColumn({ title })
     }),
     createManyCols: tool({
-      description: 'Cria várias colunas',
+      description: 'Create multiple columns',
       parameters: z.object({
         columns: z.array(
           z.object({
-            title: z.string().describe('Título da coluna')
+            title: z.string().describe('Column title')
           })
         )
       }),
@@ -46,22 +46,22 @@ export class ChatbotService {
       }
     }),
     createCard: tool({
-      description: 'Cria um card em uma coluna',
+      description: 'Create a new card',
       parameters: z.object({
-        title: z.string().describe('Título do card'),
-        columnId: z.number().describe('ID da coluna')
+        title: z.string().describe('Card title'),
+        columnId: z.number().describe('ID of the column to which the card belongs')
       }),
       execute: async ({ columnId, title }) =>
         await this.cardService.createCard({ columnId, title })
     }),
 
     createManyCards: tool({
-      description: 'Cria vários cards',
+      description: 'Create multiple cards',
       parameters: z.object({
         cards: z.array(
           z.object({
-            title: z.string().describe('Título da coluna'),
-            columnId: z.number().describe('ID da coluna a qual o card pertence')
+            title: z.string().describe('Column Title'),
+            columnId: z.number().describe('ID of the column to which the card belongs')
           })
         )
       }),
@@ -74,7 +74,7 @@ export class ChatbotService {
     const token = process.env.GITHUB_TOKEN;
     const endpoint = 'https://models.inference.ai.azure.com';
     const openai = createOpenAI({ baseURL: endpoint, apiKey: token });
-    const model = openai('gpt-4o');
+    const model = openai('gpt-4o-mini');
 
     const messages: CoreMessage[] = [
       {
@@ -98,46 +98,13 @@ export class ChatbotService {
         messages.push({ role: 'tool', content: toolResults });
       }
     });
+    // if (toolCalls.length > 0) {
+    //   return {
+    //     response: 'Sua solicitação foi realizada com sucesso',
+    //     toolCalls
+    //   };
+    // }
 
-    if (toolCalls.length > 0) {
-      return {
-        response: 'Sua solicitação foi realizada com sucesso',
-        toolCalls
-      };
-    }
     return text;
   }
-
-  // async createColumnsAndCards({
-  //   columns,
-  // }: { columns: ColumnCreateInput[]}) {
-
-  //   return await this.prisma.$transaction(async (tx) => {
-  //     const columnsWithPosition: ColumnCreateInput[] = await Promise.all(
-  //       columns.map(async (column, index) => {
-
-  //         const lastColumn = await tx.columns.aggregate({
-  //           _max: { position: true }
-  //         });
-
-  //         const position = lastColumn._max.position
-  //           ? lastColumn._max.position + index + 1
-  //           : 1;
-
-  //         return {
-  //           title: column.title,
-  //           position
-  //         };
-  //       })
-  //     );
-
-  //     const createColumns = await tx.columns.createMany({
-  //       data: columnsWithPosition
-  //     });
-
-  //     console.log(createColumns);
-
-  //     return createColumns;
-  //   });
-  // }
 }
