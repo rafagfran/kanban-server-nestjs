@@ -8,6 +8,7 @@ export class CardService {
   constructor(private prisma: PrismaService) {}
 
   async createCard(cardInfos: CreateCardDto) {
+    console.log('cardInfos', cardInfos);
     const { columnId, title } = cardInfos;
 
     const existingColumn = await this.prisma.columns.findUnique({

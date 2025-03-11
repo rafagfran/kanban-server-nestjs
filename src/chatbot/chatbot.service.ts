@@ -88,16 +88,21 @@ export class ChatbotService {
       }
     ];
 
-    const { toolCalls, text } = await generateText({
-      model,
-      messages,
-      tools: this.getTools,
-      maxSteps: 5,
-      toolChoice: 'auto',
-      onStepFinish({ toolResults }) {
-        messages.push({ role: 'tool', content: toolResults });
-      }
-    });
+    try {
+      const {text } = await generateText({
+        model,
+        messages,
+        tools: this.getTools,
+        maxSteps: 5,
+        toolChoice: 'auto',
+      });
+      return text;
+    } catch (error) {
+      console.error(error);
+      return 'Desculpe, não consegui entender sua solicitação. Por favor, tente novamente.';
+    }
+    
+    
     // if (toolCalls.length > 0) {
     //   return {
     //     response: 'Sua solicitação foi realizada com sucesso',
@@ -105,6 +110,6 @@ export class ChatbotService {
     //   };
     // }
 
-    return text;
+
   }
 }
