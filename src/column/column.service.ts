@@ -7,7 +7,7 @@ import type { CreateColumnDto } from './create-column.dto';
 export class ColumnService {
   constructor(private prisma: PrismaService) {}
 
-  async createColumn(newColumnData: CreateColumnDto) {
+  async createColumn(newColumnData: CreateColumnDto): Promise<ColumnResponse> {
     const { title } = newColumnData;
 
     const lastColumn = await this.prisma.columns.aggregate({

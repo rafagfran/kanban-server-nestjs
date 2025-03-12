@@ -19,7 +19,7 @@ export class ChatbotController {
       }
 
       const response = await this.chatbotService.handleMessage(body.message);
-      return { success: true, data: response};
+      return response;
     } catch (error) {
       throw new HttpException(error.message || "Interna server error", HttpStatus.INTERNAL_SERVER_ERROR);
     }
