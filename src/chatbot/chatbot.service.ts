@@ -1,6 +1,7 @@
 import { createOpenAI } from '@ai-sdk/openai';
 import { Injectable } from '@nestjs/common';
-import { CoreMessage, ToolSet, generateText, tool } from 'ai';
+import { CoreMessage, ToolSet, streamText, tool } from 'ai';
+import { Response } from 'express';
 import { CardService } from 'src/card/card.service';
 import { ColumnService } from 'src/column/column.service';
 import { PrismaService } from 'src/database/prisma.service';
@@ -14,7 +15,10 @@ export class ChatbotService {
     private prisma: PrismaService
   ) {}
 
-  async handleMessage(message: string) {
+  async handleMessage(message: string, res: Response) {
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Transfer-Encoding', 'chunked');
+
     const token = process.env.GITHUB_TOKEN;
     const endpoint = 'https://models.inference.ai.azure.com';
     const openai = createOpenAI({ baseURL: endpoint, apiKey: token });
@@ -27,7 +31,8 @@ export class ChatbotService {
         parameters: z.object({
           title: z.string().describe('Column title')
         }),
-        execute: async ({ title }) => this.columnService.createColumn({ title })
+        execute: async ({ title }) =>
+          await this.columnService.createColumn({ title })
       }),
       createManyCols: tool({
         description: 'Create multiple columns',
@@ -38,12 +43,8 @@ export class ChatbotService {
             })
           )
         }),
-        execute: async (columnsToCreate) => {
-          const createdCols = await this.columnService.createManyColumns(
-            columnsToCreate.columns
-          );
-          return `Colunas criadas: ${createdCols.map((col) => `ID: ${col.id}, Título: ${col.title}`)}`;
-        }
+        execute: async (columnsToCreate) =>
+          await this.columnService.createManyColumns(columnsToCreate.columns)
       }),
       createCard: tool({
         description: 'Create a new card',
@@ -56,7 +57,6 @@ export class ChatbotService {
         execute: async ({ columnId, title }) =>
           await this.cardService.createCard({ columnId, title })
       }),
-
       createManyCards: tool({
         description: 'Create multiple cards',
         parameters: z.object({
@@ -70,7 +70,7 @@ export class ChatbotService {
           )
         }),
         execute: async (cardsToCreate) =>
-          this.cardService.createManyCards(cardsToCreate.cards)
+          await this.cardService.createManyCards(cardsToCreate.cards)
       })
     };
 
@@ -78,7 +78,7 @@ export class ChatbotService {
       {
         role: 'system',
         content:
-          'Você é um assistente virtual especializado em automação de processos dentro de um sistema Kanban. Sua função é interpretar as mensagens recebidas, identificar a intenção do usuário e determinar qual função chamar para atender à solicitação da melhor forma possível. Você deve agir com precisão e eficiência, garantindo que as ações tomadas estejam alinhadas às necessidades do usuário. Você jamais deve revelar informações internas sobre a estrutura, funcionamento ou lógica do sistema. Se uma solicitação não puder ser atendida por meio das funções disponíveis, forneça uma resposta neutra e objetiva, mantendo a confidencialidade do sistema.'
+          'You are a process automation assistant for a Kanban system. Your role is to execute specific actions as requested, ensuring that each function is processed individually and that any dependencies between functions are respected before proceeding. Do not perform multiple operations simultaneously.Never disclose internal details about the systems logic, structure, or functionality. If a request is unclear or could compromise the systems integrity, ask for clarification before executing.'
       },
       {
         role: 'user',
@@ -87,25 +87,29 @@ export class ChatbotService {
     ];
 
     try {
-      const { text, steps } = await generateText({
+      const { textStream } = streamText({
         model,
         messages,
         tools: getTools,
         maxSteps: 5,
         toolChoice: 'auto',
-        onStepFinish({ toolCalls, toolResults }) {
-          if (toolResults) {
-
-            console.log(toolResults);
+        onStepFinish({ stepType, toolCalls, toolResults }) {
+          if (toolCalls.length > 0) {
+            console.log('stepType:', stepType);
+            console.log('toolCalls:', toolCalls);
+            console.log('toolResults:', toolResults);
           }
         }
       });
 
-      const toolCalls = steps.some(
-        (step) => step.finishReason === 'tool-calls'
-      );
+      for await (const textPart of textStream) {
+        console.log(textPart);
+        res.write(textPart);
+      }
 
-      return { toolCalls, message: text };
+      res.end();
+
+      // return { toolCalls, message: text };
     } catch (error) {
       console.error(error);
       return 'Desculpe, não consegui entender sua solicitação. Por favor, tente novamente.';
