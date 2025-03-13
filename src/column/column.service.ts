@@ -1,6 +1,10 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/database/prisma.service';
-import { ColumnResponse, ColumnWithCardsResponse } from 'src/types/types';
+import {
+  ColumnResponse,
+  ColumnWithCardsResponse,
+  columnUpdate
+} from 'src/types/types';
 import type { CreateColumnDto } from './create-column.dto';
 
 @Injectable()
@@ -26,7 +30,6 @@ export class ColumnService {
   async createManyColumns(
     newColumnsData: CreateColumnDto[]
   ): Promise<ColumnResponse[]> {
-    
     return await this.prisma.$transaction(async (fx) => {
       const lastColumn = await fx.columns.aggregate({
         _max: { position: true }
@@ -59,7 +62,7 @@ export class ColumnService {
     });
   }
 
-  async updateColumnTitle(id: number, title: string) {
+  async updateColumn(id: number, newInfos: columnUpdate) {
     const existentColumn = await this.prisma.columns.findUnique({
       where: { id }
     });
@@ -70,7 +73,7 @@ export class ColumnService {
 
     return await this.prisma.columns.update({
       where: { id },
-      data: { title }
+      data: newInfos
     });
   }
 
@@ -92,5 +95,23 @@ export class ColumnService {
     }
 
     return await this.prisma.columns.delete({ where: { id } });
+  }
+
+  async deleteAllColumns() {
+    const existentColumns = await this.prisma.columns.findMany();
+
+    if (existentColumns.length === 0) {
+      return 'There are no columns to delete';
+    }
+
+    const columnsId = existentColumns.map((column) => column.id);
+
+    await this.prisma.cards.deleteMany({
+      where: { columnId: { in: columnsId } }
+    });
+
+    return await this.prisma.columns.deleteMany({
+      where: { id: { in: columnsId } }
+    });
   }
 }

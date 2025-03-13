@@ -5,7 +5,8 @@ import {
   Get,
   Param,
   ParseIntPipe,
-  Post
+  Post,
+  Put
 } from '@nestjs/common';
 import { ColumnResponse, ColumnWithCardsResponse } from 'src/types/types';
 import { ColumnService } from './column.service';
@@ -36,4 +37,9 @@ export class ColumnController {
   async deleteList(@Param('id', ParseIntPipe) id: number) {
     return this.columnService.deleteColumn(id);
   }
+
+  // @Put(':id')
+  // async updateColumn(@Param('id') id: number, @Body()  ) {
+  //   return this.columnService.updateColumn(id)
+  // }
 }
