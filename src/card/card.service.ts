@@ -1,6 +1,7 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { UpdateCardDto } from 'src/card/update-card.dto';
 import { PrismaService } from 'src/database/prisma.service';
+import { CardResponse } from 'src/types/types';
 import { CreateCardDto } from './create-card.dto';
 
 @Injectable()
@@ -36,12 +37,15 @@ export class CardService {
     });
   }
 
-  async createManyCards(cards: CreateCardDto[]) {
+  async createManyCards(cards: CreateCardDto[]): Promise<CardResponse[]> {
+    console.log(cards);
     if (!cards.length) {
       throw new HttpException('No cards to create', HttpStatus.BAD_REQUEST);
     }
 
     return await this.prisma.$transaction(async (fx) => {
+      
+      // TODO: Posições completamente sem sentido
       const lastCard = await fx.cards.aggregate({
         _max: { position: true }
       });
@@ -51,9 +55,17 @@ export class CardService {
         position: (lastCard._max.position ?? 0) + index + 1
       }));
 
-      return fx.cards.createMany({
-        data: cardsWithPosition
+      await fx.cards.createMany({ data: cardsWithPosition });
+
+      return await fx.cards.findMany({
+        where: {
+          position: { in: cardsWithPosition.map((card) => card.position) }
+        }
       });
+
+      // return await fx.cards.createMany({
+      //   data: cardsWithPosition
+      // });
     });
   }
 

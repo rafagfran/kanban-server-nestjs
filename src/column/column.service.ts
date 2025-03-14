@@ -42,13 +42,13 @@ export class ColumnService {
         };
       });
 
-      const createdCols = await Promise.all(
-        colsWithPosition.map(async (column) => {
-          return await fx.columns.create({ data: column });
-        })
-      );
+      await fx.columns.createMany({data: colsWithPosition})
 
-      return createdCols;
+      return await fx.columns.findMany({
+        where:{
+          position: {in: colsWithPosition.map(col => col.position)}
+        }
+      });
     });
   }
 
