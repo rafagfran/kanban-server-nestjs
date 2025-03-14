@@ -43,7 +43,7 @@ export class ColumnService {
       });
 
       await fx.columns.createMany({data: colsWithPosition})
-
+      
       return await fx.columns.findMany({
         where:{
           position: {in: colsWithPosition.map(col => col.position)}

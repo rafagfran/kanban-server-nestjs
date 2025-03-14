@@ -38,7 +38,6 @@ export class CardService {
   }
 
   async createManyCards(cards: CreateCardDto[]): Promise<CardResponse[]> {
-    console.log(cards);
     if (!cards.length) {
       throw new HttpException('No cards to create', HttpStatus.BAD_REQUEST);
     }

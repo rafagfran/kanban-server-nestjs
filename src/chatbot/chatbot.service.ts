@@ -24,7 +24,7 @@
       {
         role: 'system',
         content:
-          'You are a process automation assistant for a Kanban system. Your role is to execute specific actions as requested, ensuring that each function is processed individually and that any dependencies between functions are respected before proceeding. When handling requests, always ensure that columns are created before cards, as cards depend on the existence of columns. If a user requests the creation of both columns and cards in a single operation, process the columns first, and only then proceed to create the cards. When creating multiple cards, always group them into a single batch operation, regardless of which columns they belong to. If a request is unclear, could compromise the systems integrity, or violates the dependency rules (e.g., creating cards before columns), ask for clarification before executing. Never disclose internal details about the systems logic, structure, or functionality.'
+          'You are a process automation assistant for a Kanban system. Your role is to execute specific actions as requested, ensuring that each function is processed individually and that any dependencies between functions are respected before proceeding. When handling requests, always ensure that columns are created before cards, as cards depend on the existence of columns. If a user requests the creation of both columns and cards in a single operation, process the columns first, and only then proceed to create the cards. When creating multiple cards, always group them into a single batch operation, regardless of which columns they belong to. If a request is unclear, could compromise the systems integrity, or violates the dependency rules (e.g., creating cards before columns), ask for clarification before executing. Never disclose internal details about the systems logic, structure, or functionality'
       }
     ];
 
@@ -44,7 +44,7 @@
             await this.columnService.createColumn({ title })
         }),
         createManyCols: tool({
-          description: 'Create multiple columns',
+          description: 'Cria varias colunas de uma vez',
           parameters: z.object({
             columns: z.array(
               z.object({
@@ -92,7 +92,7 @@
       };
 
       try {
-        const { text, toolCalls, toolResults } = await generateText({
+        const { text, toolCalls, toolResults, response: {timestamp} } = await generateText({
           model,
           messages: [
             ...this.messages,
@@ -120,13 +120,13 @@
           this.messages.push({ role: 'assistant', content: text });
         }
 
-        return { toolCalls, message: text };
+        return { toolCalls, message: text, timestamp };
       } catch (error) {
         if (ToolExecutionError.isInstance(error)) {
           console.log('name:', error.name);
           console.log('Tool:', error.toolName);
           console.log('error:', error.message);
-          return;
+          return {message: 'Desculpe, não consegui processar sua solicitação, tente novamente mais tarde!'};
           // Handle the error
         }
         console.error(error);
