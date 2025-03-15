@@ -42,30 +42,33 @@ export class CardService {
       throw new HttpException('No cards to create', HttpStatus.BAD_REQUEST);
     }
 
-    return await this.prisma.$transaction(async (fx) => {
-      
-      // TODO: Posições completamente sem sentido
-      const lastCard = await fx.cards.aggregate({
-        _max: { position: true }
-      });
-
-      const cardsWithPosition = cards.map((card, index) => ({
-        ...card,
-        position: (lastCard._max.position ?? 0) + index + 1
-      }));
-
-      await fx.cards.createMany({ data: cardsWithPosition });
-
-      return await fx.cards.findMany({
-        where: {
-          position: { in: cardsWithPosition.map((card) => card.position) }
-        }
-      });
-
-      // return await fx.cards.createMany({
-      //   data: cardsWithPosition
-      // });
+    const searchCols = await this.prisma.columns.findMany({
+      where: { id: { in: cards.map((card) => card.columnId) } }
     });
+
+    if (!searchCols) {
+      throw new HttpException('Columns not found', HttpStatus.NOT_FOUND);
+    }
+
+    try {
+      return await this.prisma.$transaction(async (fx) => {
+        const cardsWithPosition = cards.map((card, index) => ({
+          ...card,
+          position: index + 1
+        }));
+
+        await fx.cards.createMany({ data: cardsWithPosition });
+
+        return await fx.cards.findMany({
+          where: {
+            position: { in: cardsWithPosition.map((card) => card.position) }
+          }
+        });
+      });
+    } catch (error) {
+      console.log('CreateManyCardsError:', error);
+      return error;
+    }
   }
 
   async createCardInBulkPerColumn({
