@@ -7,35 +7,50 @@ import {
   generateText,
   tool
 } from 'ai';
+import { timestamp } from 'rxjs';
 import { CardService } from 'src/card/card.service';
 import { ColumnService } from 'src/column/column.service';
 import { PrismaService } from 'src/database/prisma.service';
 import { z } from 'zod';
 
+// Crie um template completo para um ambiente de trabalho, com todas as etapas para a documentação, criação e organização durante o desenvolvimento de sistemas web 
+
 @Injectable()
 export class ChatbotService {
+  private openai;
+  private model;
+  private tools: ToolSet;
+  private messages: CoreMessage[];
 
-  
   constructor(
     private cardService: CardService,
     private columnService: ColumnService,
     private prisma: PrismaService
-  ) {}
-  private token = process.env.GITHUB_TOKEN;
-  private endpoint = 'https://models.inference.ai.azure.com';
-  private openai = createOpenAI({ baseURL: this.endpoint, apiKey: this.token });
-  private model = this.openai('gpt-4o-mini');
+  ) {
+    this.initializeOpenAI();
+    this.initializeMessages();
+    this.getTools();
+  }
 
-  private messages: CoreMessage[] = [
-    {
-      role: 'system',
-      content:
-        'You are a process automation assistant for a Kanban system. Your role is to execute specific actions as requested, ensuring that each function is processed individually and that any dependencies between functions are respected before proceeding. When handling requests, always ensure that columns are created before cards, as cards depend on the existence of columns. If a user requests the creation of both columns and cards in a single operation, process the columns first, and only then proceed to create the cards. When creating multiple cards, always group them into a single batch operation, regardless of which columns they belong to. If a request is unclear, could compromise the systems integrity, or violates the dependency rules (e.g., creating cards before columns), ask for clarification before executing. Never disclose internal details about the systems logic, structure, or functionality'
-    }
-  ];
+  private initializeOpenAI() {
+    const token = process.env.GITHUB_TOKEN;
+    const endpoint = 'https://models.inference.ai.azure.com';
 
-  async handleMessage(message: string) {
-    const getTools: ToolSet = {
+    this.openai = createOpenAI({ baseURL: endpoint, apiKey: token });
+    this.model = this.openai('gpt-4o-mini');
+  }
+
+  private initializeMessages() {
+    this.messages = [
+      {
+        role: 'system',
+        content:
+          'Voce é um assistente virtual de automação que executa funções de acordo com a solicitação do usuario. Caso o usuario solicitar a criação de multiplas colunas e cards, sempre execute primeiro a função de criar colunas, espera a conclusão e somente depois execute a de criação de cards, jamais execute as duas funçoes ao mesmo tempo, isto causara erro, pois os cards dependes das colunas. Ao criar vários cartões, sempre agrupe-os em uma única operação em lote, independentemente das colunas atribuídas.Se uma solicitação não for clara, puder comprometer a integridade do sistema ou violar as regras de dependência (por exemplo, criar cartões antes das colunas), peça esclarecimentos antes de prosseguir e Nunca divulgue detalhes internos sobre a lógica, estrutura ou funcionalidade do sistema. Nao precisa falar quais os passos que vai ou esta executando, apenas execute. Caso o usuario peça um modelo crie um modelo que atenda as necessidades dele e pergunte se ele deseja que seja criado. Sempre que o usuario solicitar uma deleção, faça uma verificação de segurança'
+      }
+    ];
+  }
+  private getTools() {
+    this.tools = {
       createCol: tool({
         description: 'Create a new column',
         parameters: z.object({
@@ -64,8 +79,9 @@ export class ChatbotService {
             .number()
             .describe('ID of the column to which the card belongs')
         }),
-        execute: async ({ columnId, title }) =>
-          await this.cardService.createCard({ columnId, title })
+        execute: async ({ columnId, title }) => {
+          await this.cardService.createCard({ columnId, title });
+        }
       }),
       createMultipleCards: tool({
         description: 'Create multiple cards',
@@ -75,7 +91,7 @@ export class ChatbotService {
               title: z.string().describe('title of card'),
               columnId: z.number().describe('Number of column')
             })
-          ) 
+          )
         }),
         execute: async ({ cards }) => {
           if (!Array.isArray(cards)) {
@@ -88,35 +104,14 @@ export class ChatbotService {
         description: 'Delete all columns',
         parameters: z.object({}),
         execute: async () => await this.columnService.deleteAllColumns()
-      }),
+      })
     };
+  }
 
+  async handleMessage(message: string) {
     try {
-      const {
-        text,
-        toolCalls,
-        toolResults,
-        response: { timestamp }
-      } = await generateText({
-        model: this.model,
-        messages: [
-          ...this.messages,
-          {
-            role: 'user',
-            content: message
-          }
-        ],
-        tools: getTools,
-        maxSteps: 5,
-        toolChoice: 'auto',
-        onStepFinish({ stepType, toolCalls, toolResults }) {
-          if (toolCalls.length > 0) {
-            console.log('stepType:', stepType);
-            console.log('toolCalls:', toolCalls);
-            console.log('toolResults:', toolResults);
-          }
-        }
-      });
+      const { text, toolCalls, toolResults } =
+        await this.proccessMessage(message);
 
       this.messages.push({ role: 'user', content: message });
       if (toolCalls.length > 0) {
@@ -127,50 +122,46 @@ export class ChatbotService {
 
       return { toolCalls, message: text, timestamp };
     } catch (error) {
-      if (ToolExecutionError.isInstance(error)) {
-        const { message, name, toolArgs, toolName, cause } = error;
-
-        console.log({ name, message, toolArgs, toolName, cause });
-
-        return {
-          message:
-            'Desculpe, não consegui processar sua solicitação, tente novamente mais tarde!'
-        };
-        // Handle the error
-      }
-      console.error(error);
-      return 'Desculpe, não consegui entender sua solicitação. Por favor, tente novamente.';
+      return this.handleError(error);
     }
   }
 
-  // async createMultipleColsAndCards({
-  //   columns,
-  //   cards
-  // }: {
-  //   columns: { title: string }[];
-  //   cards: { title: string; columnId: number }[];
-  // }) {
-  //   const { toolResults } = await generateText({
-  //     messages: [{ role: 'user', content: `New columns title ${columns}` }],
-  //     model: this.model,
-  //     toolChoice: { type: 'tool', toolName: 'createMultipleCols' }
-  //   });
+  private async proccessMessage(message: string) {
+    try {
+      const response = await generateText({
+        model: this.model,
+        messages: [...this.messages, { role: 'user', content: message }],
+        tools: this.tools,
+        maxSteps: 5,
+        toolChoice: 'auto',
+        onStepFinish({ stepType, toolCalls, toolResults, text }) {
+          if (toolCalls.length > 0) {
+            console.log('stepType:', stepType);
+            console.log('toolCalls:', toolCalls);
+            console.log('toolResults:', toolResults);
+            console.log('response:', text);
+            console.log('------------------------------');
+          }
+        }
+      });
 
-  //   const createdCols = toolResults.map((result: ToolResultPart) => {
-  //     return result.result;
-  //   });
+      return response;
+    } catch (error) {
+      throw new Error(error);
+    }
+  }
 
-  //   const toolCards = await generateText({
-  //     model: this.model,
-  //     messages: [
-  //       {
-  //         role: 'user',
-  //         content: `Columns data ${createdCols}, Cards data ${cards}`
-  //       }
-  //     ],
-  //     toolChoice: { type: 'tool', toolName: 'createMultipleCards' }
-  //   });
+  private handleError(error: unknown) {
+    if (ToolExecutionError.isInstance(error)) {
+      const { message, name, toolArgs, toolName, cause } = error;
+      console.log({ name, message, toolArgs, toolName, cause });
 
-  //   console.log(toolCards);
-  // }
+      return {
+        message:
+          'Desculpe, não consegui processar sua solicitação, tente novamente mais tarde!'
+      };
+    }
+    console.error(error);
+    return 'Desculpe, não consegui entender sua solicitação. Por favor, tente novamente.';
+  }
 }
