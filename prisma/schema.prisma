@@ -26,6 +26,7 @@ model Cards {
   id        Int      @id @default(autoincrement())
   columnId  Int
   title     String
+  priority  String?   @default("Low")
   position  Int?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

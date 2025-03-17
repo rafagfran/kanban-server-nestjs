@@ -9,7 +9,7 @@ export class CardService {
   constructor(private prisma: PrismaService) {}
 
   async createCard(cardInfos: CreateCardDto) {
-    const { columnId, title } = cardInfos;
+    const { columnId, title, priority } = cardInfos;
 
     const existingColumn = await this.prisma.columns.findUnique({
       where: { id: columnId }
@@ -28,7 +28,7 @@ export class CardService {
 
     if (!lastCard._max.position) {
       return this.prisma.cards.create({
-        data: { columnId, title, position: 1 }
+        data: { columnId, title, position: 1, priority}
       });
     }
 

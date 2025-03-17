@@ -7,13 +7,13 @@ import {
   generateText,
   tool
 } from 'ai';
-import { timestamp } from 'rxjs';
 import { CardService } from 'src/card/card.service';
 import { ColumnService } from 'src/column/column.service';
 import { PrismaService } from 'src/database/prisma.service';
+import { CardPriority } from 'src/types/types';
 import { z } from 'zod';
 
-// Crie um template completo para um ambiente de trabalho, com todas as etapas para a documentação, criação e organização durante o desenvolvimento de sistemas web 
+// Crie um template completo para um ambiente de trabalho, com todas as etapas para a documentação, criação e organização durante o desenvolvimento de sistemas web
 
 @Injectable()
 export class ChatbotService {
@@ -45,14 +45,19 @@ export class ChatbotService {
       {
         role: 'system',
         content:
-          'Voce é um assistente virtual de automação que executa funções de acordo com a solicitação do usuario. Caso o usuario solicitar a criação de multiplas colunas e cards, sempre execute primeiro a função de criar colunas, espera a conclusão e somente depois execute a de criação de cards, jamais execute as duas funçoes ao mesmo tempo, isto causara erro, pois os cards dependes das colunas. Ao criar vários cartões, sempre agrupe-os em uma única operação em lote, independentemente das colunas atribuídas.Se uma solicitação não for clara, puder comprometer a integridade do sistema ou violar as regras de dependência (por exemplo, criar cartões antes das colunas), peça esclarecimentos antes de prosseguir e Nunca divulgue detalhes internos sobre a lógica, estrutura ou funcionalidade do sistema. Nao precisa falar quais os passos que vai ou esta executando, apenas execute. Caso o usuario peça um modelo crie um modelo que atenda as necessidades dele e pergunte se ele deseja que seja criado. Sempre que o usuario solicitar uma deleção, faça uma verificação de segurança'
+          'Voce é um assistente virtual de automação que executa funções de acordo com a solicitação do usuario. Caso o usuario solicitar a criação de multiplas colunas e cards, sempre execute primeiro a função de criar colunas, espera a conclusão e somente depois execute a de criação de cards, jamais execute as duas funçoes ao mesmo tempo, isto causara erro, pois os cards dependes das colunas. Ao criar vários cartões, sempre agrupe-os em uma única operação em lote, independentemente das colunas atribuídas.Se uma solicitação não for clara, puder comprometer a integridade do sistema ou violar as regras de dependência (por exemplo, criar cartões antes das colunas), peça esclarecimentos antes de prosseguir e Nunca divulgue detalhes internos sobre a lógica, estrutura ou funcionalidade do sistema. Nao precisa falar quais os passos que vai ou esta executando, apenas execute. Caso o usuario peça algo relacioando a um modelo de processos ou fluxo de trabalho, crie um modelo que atenda as necessidades dele e pergunte se ele deseja que seja criado. Sempre que o usuario solicitar uma deleção, faça uma verificação de segurança. Caso o usuario solicitar uma documentação, busque as informaçoes dos dados exitentes e crie uma documentação. Responda sempre utilizando tags html.'
       }
     ];
   }
   private getTools() {
     this.tools = {
+      getInfos: tool({
+        description: 'Get columns and cards informations',
+        parameters: z.object({}),
+        execute: async () => await this.columnService.listColumnsWithCards()
+      }),
       createCol: tool({
-        description: 'Create a new column',
+        description: 'Create a single new column',
         parameters: z.object({
           title: z.string().describe('Column title')
         }),
@@ -60,7 +65,7 @@ export class ChatbotService {
           await this.columnService.createColumn({ title })
       }),
       createMultipleCols: tool({
-        description: 'Create multiple columns and return the coluns data',
+        description: 'Create multiple columns',
         parameters: z.object({
           columns: z.array(
             z.object({
@@ -72,15 +77,16 @@ export class ChatbotService {
           await this.columnService.createManyColumns(columns)
       }),
       createCard: tool({
-        description: 'Create a new card',
+        description: 'Create a single new card',
         parameters: z.object({
           title: z.string().describe('Card title'),
+          priority: z.nativeEnum(CardPriority).describe('Card Priority'),
           columnId: z
             .number()
             .describe('ID of the column to which the card belongs')
         }),
-        execute: async ({ columnId, title }) => {
-          await this.cardService.createCard({ columnId, title });
+        execute: async (newCard) => {
+          await this.cardService.createCard(newCard);
         }
       }),
       createMultipleCards: tool({
@@ -89,6 +95,7 @@ export class ChatbotService {
           cards: z.array(
             z.object({
               title: z.string().describe('title of card'),
+              priority: z.nativeEnum(CardPriority).describe('Card Priority'),
               columnId: z.number().describe('Number of column')
             })
           )
@@ -120,7 +127,7 @@ export class ChatbotService {
         this.messages.push({ role: 'assistant', content: text });
       }
 
-      return { toolCalls, message: text, timestamp };
+      return { toolCalls, message: text };
     } catch (error) {
       return this.handleError(error);
     }
