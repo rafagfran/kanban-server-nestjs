@@ -13,8 +13,6 @@ import { PrismaService } from 'src/database/prisma.service';
 import { CardPriority } from 'src/types/types';
 import { z } from 'zod';
 
-// Crie um template completo para um ambiente de trabalho, com todas as etapas para a documentação, criação e organização durante o desenvolvimento de sistemas web
-
 @Injectable()
 export class ChatbotService {
   private openai;
